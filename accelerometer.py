@@ -77,7 +77,8 @@ _OFF_Z = 0X31
 
 class Accelerometer:
     """
-    This runs the mm8451 accelerometer
+    This runs the mm8451 digital 3 axit accelerometer, it configures the accelerometer for +/- 2 gs, in high resolution mode(154 bits for the raspberry pi
+    this seems only to run on the gpio i2c because this is the only I2c that supports clock stretching.
 
     """
 
@@ -85,7 +86,7 @@ class Accelerometer:
         """
         initialize the device
         :param i2c_address: the i2c address of the device
-        :param bus: number the the bus number of the i2c
+        :param bus_number: number the bus number of the i2c
         """
         self.bus_number = bus_number
         self.i2c_address = i2c_address
@@ -96,9 +97,9 @@ class Accelerometer:
             raise error
 
         who_am_i = self.i2cbus.read_byte_data(i2c_address, _WHO_AM_I)
-        print(f'the id = 0x{who_am_i:x} and this should be 0x1a')
+        print(f'The  id = 0x{who_am_i:x}. If the id = 0x1a the this is probably an mm8451.\nIf the id is not 0x1a, this this is not an mm8451 3 axis accelerometer')
         if who_am_i != 0x1a:
-            raise ValueError(f"The i2c who am i was not 0x1a, it was {who_am_i}")
+            raise ValueError(f"The i2c who am i was not 0x1a, it was 0x{who_am_i:x}")
         # write the high pass filter bit to a 1 and set to 2 g
         self.i2cbus.write_byte_data(self.i2c_address, _XYZ_DATA_CFG, 0x10)
         self.i2cbus.write_byte_data(self.i2c_address, _CTRL_REG2, 0x02)  # high resolution
@@ -112,14 +113,19 @@ class Accelerometer:
         :return: a list of accelerations, x, y and z in g's
         """
         accelerations = self.i2cbus.read_i2c_block_data(self.i2c_address, _OUT_X_MSB, 6)
-        accel_list = []
-        for index in range(0, 6, 2):
-            accel_list.append((self.bytes_to_short(accelerations[index], accelerations[index+1])*.00025))
+        # accel_list = []
+        # print(','.join([f'0x{x:x}' for x in accelerations]))
+        # for index in range(0, 6, 2):
+        #     accel_short = self.bytes_to_short(accelerations[index], accelerations[index + 1])
+        #
+        #     accel_gees = accel_short * .00025
+        #     accel_list.append(accel_gees)
 
-        # packed_struct = bytearray(accelerations)
-        # print(packed_struct)
-        # x_accel, y_accel, z_accel = struct.unpack('hhh', packed_struct)
-        # accel_list = [x_accel * .00025, y_accel* .00025, z_accel * .00025]
+        packed_struct = bytes(accelerations)
+        # the acceleration list is in big endian order so the > symbol
+        x_accel, y_accel, z_accel = struct.unpack('>hhh', packed_struct)
+        # print(f'0x{x_accel:x}, 0x{y_accel:x}, 0x{z_accel:x}')
+        accel_list = [x_accel/4 * .00025, y_accel/4 * .00025, z_accel/4 * .00025]
 
         return accel_list
 
@@ -133,15 +139,18 @@ class Accelerometer:
 
     def bytes_to_short(self, msb: int, lsb: int) -> int:
         """
-        take a byte amd makes a short with sign extend
+        take a byte amd makes a short with sign extend and divide by 4
+        this is because the lower to bits of each acceleration are not used.
+        the read smbus returns a list of ints which are between 0 and 255 and these are not signed
+        So,
 
         :param msb:
         :param lsb:
-        :return: int
+        :return: int which is signed.
         """
         value = (msb << 8) | lsb
         sign_extend = (value & 0xffff) - 0x8000 if value & 0x8000 else value
-        return sign_extend / 4
+        return sign_extend // 4
 
     def close_accelerometer(self) -> None:
         """
@@ -181,7 +190,6 @@ def accelerometer() -> None:
     accel = Accelerometer(i2c_address, device_number)
     status = accel.read_status()
     while not (status & 0b0000_1000):    # loop till status becomes 1
-        print(f'status = 0x{status:x}')
         status = accel.read_status()
         pass
     print(f'status = 0x{status:x}')
