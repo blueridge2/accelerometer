@@ -12,14 +12,7 @@
 # ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH
 # THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 import argparse
-import os
-import fcntl
 from smbus import SMBus
-import re
-import subprocess
-import sys
-import threading
-import time
 import struct
 import signal
 import sys
@@ -114,7 +107,7 @@ class Accelerometer:
         # write the high pass filter bit to a 1 and set to 2 g
         self.i2cbus.write_byte_data(self.i2c_address, _XYZ_DATA_CFG, 0x10)
         self.i2cbus.write_byte_data(self.i2c_address, _CTRL_REG2, 0x02)  # high resolution
-        self.i2cbus.write_byte_data(self.i2c_address, _CTRL_REG4, 0x01)  # data ready interrup enabled
+        self.i2cbus.write_byte_data(self.i2c_address, _CTRL_REG4, 0x01)  # data ready interrupt enabled
         self.i2cbus.write_byte_data(self.i2c_address, _CTRL_REG5, 0x01)  # interrupt routed to pin 1
         self.i2cbus.write_byte_data(self.i2c_address, _CTRL_REG1, (output_data_rate << 3) | 0x01)  # enable at min rate
 
@@ -208,10 +201,10 @@ def accelerometer() -> None:
         print(f'status = 0x{status:x}')
         accelerations = accel.read_accelerations()
         print(", ".join([f'{d_accel:.4f}' for d_accel in accelerations]))
+
     accel.close_accelerometer()
 
 
-# Press the green button in the gutter to run the script.
 if __name__ == '__main__':
     accelerometer()
 
