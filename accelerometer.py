@@ -21,6 +21,8 @@ import sys
 import threading
 import time
 import struct
+import signal
+import sys
 
 
 _ACCELEROMETER_I2C_ADDRESS = 0x1d
@@ -74,6 +76,15 @@ _OFF_X = 0X2F
 _OFF_Y = 0X30
 _OFF_Z = 0X31
 
+OUTPUT_DATA_RATE_800 = 0x0
+OUTPUT_DATA_RATE_400 = 0x1
+OUTPUT_DATA_RATE_200 = 0x2
+OUTPUT_DATA_RATE_100 = 0x3
+OUTPUT_DATA_RATE_50 = 0x4
+OUTPUT_DATA_RATE_12_5 = 0x5
+OUTPUT_DATA_RATE_6_25 = 0x6
+OUTPUT_DATA_RATE_1_56 = 0x7
+
 
 class Accelerometer:
     """
@@ -82,7 +93,7 @@ class Accelerometer:
 
     """
 
-    def __init__(self, i2c_address=0x1d, bus_number=1) -> None:
+    def __init__(self, i2c_address=0x1d, bus_number=1, output_data_rate=OUTPUT_DATA_RATE_6_25) -> None:
         """
         initialize the device
         :param i2c_address: the i2c address of the device
@@ -105,24 +116,16 @@ class Accelerometer:
         self.i2cbus.write_byte_data(self.i2c_address, _CTRL_REG2, 0x02)  # high resolution
         self.i2cbus.write_byte_data(self.i2c_address, _CTRL_REG4, 0x01)  # data ready interrup enabled
         self.i2cbus.write_byte_data(self.i2c_address, _CTRL_REG5, 0x01)  # interrupt routed to pin 1
-        self.i2cbus.write_byte_data(self.i2c_address, _CTRL_REG1, 0x01)  # enable at min rate
+        self.i2cbus.write_byte_data(self.i2c_address, _CTRL_REG1, (output_data_rate << 3) | 0x01)  # enable at min rate
 
     def read_accelerations(self) -> list[int, int, int]:
         """
         read the accelerations from the device
         :return: a list of accelerations, x, y and z in g's
         """
-        accelerations = self.i2cbus.read_i2c_block_data(self.i2c_address, _OUT_X_MSB, 6)
-        # accel_list = []
-        # print(','.join([f'0x{x:x}' for x in accelerations]))
-        # for index in range(0, 6, 2):
-        #     accel_short = self.bytes_to_short(accelerations[index], accelerations[index + 1])
-        #
-        #     accel_gees = accel_short * .00025
-        #     accel_list.append(accel_gees)
-
-        packed_struct = bytes(accelerations)
-        # the acceleration list is in big endian order so the > symbol
+        accelerations = self.i2cbus.read_i2c_block_data(self.i2c_address, _OUT_X_MSB, 6)  # this returns a list of 6 bytes
+        packed_struct = bytes(accelerations)    # make these a byte array
+        # the acceleration list is in big endian order so the > symbol, so upack big endian
         x_accel, y_accel, z_accel = struct.unpack('>hhh', packed_struct)
         # print(f'0x{x_accel:x}, 0x{y_accel:x}, 0x{z_accel:x}')
         accel_list = [x_accel/4 * .00025, y_accel/4 * .00025, z_accel/4 * .00025]
@@ -137,7 +140,8 @@ class Accelerometer:
         status = self.i2cbus.read_byte_data(self.i2c_address, _STATUS)
         return status
 
-    def bytes_to_short(self, msb: int, lsb: int) -> int:
+    @staticmethod
+    def bytes_to_short(msb: int, lsb: int) -> int:
         """
         take a byte amd makes a short with sign extend and divide by 4
         this is because the lower to bits of each acceleration are not used.
@@ -167,7 +171,6 @@ class Accelerometer:
             except OSError:
                 reset_bit = 0b0100_0000
 
-
     def read_range(self):
         """
         read the range register of the accelerometer
@@ -188,13 +191,23 @@ def accelerometer() -> None:
     device_number = args.dev_number
     i2c_address = args.i2c_address
     accel = Accelerometer(i2c_address, device_number)
-    status = accel.read_status()
-    while not (status & 0b0000_1000):    # loop till status becomes 1
+
+    def signal_handler(sig, frame):
+        print('You pressed control C close the accelerometer and sys.exit(0)')
+        accel.close_accelerometer()
+        sys.exit(0)
+
+    # set up signal handling
+    signal.signal(signal.SIGINT, signal_handler)
+
+    while True:
         status = accel.read_status()
-        pass
-    print(f'status = 0x{status:x}')
-    accelerations = accel.read_accelerations()
-    print(", ".join([f'{d_accel:.4f}' for d_accel in accelerations]))
+        while not (status & 0b0000_1000):    # loop till status becomes 1
+            status = accel.read_status()
+            pass
+        print(f'status = 0x{status:x}')
+        accelerations = accel.read_accelerations()
+        print(", ".join([f'{d_accel:.4f}' for d_accel in accelerations]))
     accel.close_accelerometer()
 
 
