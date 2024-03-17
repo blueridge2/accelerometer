@@ -86,7 +86,7 @@ class Accelerometer:
 
     """
 
-    def __init__(self, i2c_address=0x1d, bus_number=1, output_data_rate=OUTPUT_DATA_RATE_6_25) -> None:
+    def __init__(self, i2c_address=0x1d, bus_number=1, output_data_rate=OUTPUT_DATA_RATE_800) -> None:
         """
         initialize the device
         :param i2c_address: the i2c address of the device
@@ -178,12 +178,17 @@ def accelerometer() -> None:
     :return:
     """
     parser = argparse.ArgumentParser()
+    parser.add_argument('--odr', type=int, default=0, help='The output data rate:  %(default)s)')
     parser.add_argument('--dev_number', type=int, default=1, help='the i2c device number:  %(default)s)')
-    parser.add_argument('--i2c_address', type=int, default=0x1d, help='the  i2c address,%(default)s)')
+    parser.add_argument('--i2c_address', type=int, default=0x1d, help='The i2c bus address default = %(default)s)')
+
     args = parser.parse_args()
     device_number = args.dev_number
     i2c_address = args.i2c_address
-    accel = Accelerometer(i2c_address, device_number)
+    odr = args.odr
+    if not(0 <= odr <= 7):
+        raise ValueError("The output data rate must be between 0 7 inclusive")
+    accel = Accelerometer(i2c_address, device_number, odr)
 
     def signal_handler(sig, frame):
         print('You pressed control C close the accelerometer and sys.exit(0)')
@@ -192,7 +197,7 @@ def accelerometer() -> None:
 
     # set up signal handling
     signal.signal(signal.SIGINT, signal_handler)
-
+    counter = 0
     while True:
         status = accel.read_status()
         while not (status & 0b0000_1000):    # loop till status becomes 1
@@ -201,6 +206,9 @@ def accelerometer() -> None:
         print(f'status = 0x{status:x}')
         accelerations = accel.read_accelerations()
         print(", ".join([f'{d_accel:.4f}' for d_accel in accelerations]))
+        if counter == 10:
+            break
+        counter += 1
 
     accel.close_accelerometer()
 
