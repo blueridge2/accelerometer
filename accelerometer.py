@@ -125,7 +125,8 @@ class Accelerometer:
 
         return accel_list
 
-    def read_status(self) -> int:
+    @property
+    def mm8451_status(self) -> int:
         """
         read the status byte add address 0
         :return: the int status byte
@@ -199,9 +200,9 @@ def accelerometer() -> None:
     signal.signal(signal.SIGINT, signal_handler)
     counter = 0
     while True:
-        status = accel.read_status()
+        status = accel.mm8451_status
         while not (status & 0b0000_1000):    # loop till status becomes 1
-            status = accel.read_status()
+            status = accel.mm8451_status
             pass
         print(f'status = 0x{status:x}')
         accelerations = accel.read_accelerations()
