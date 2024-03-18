@@ -34,6 +34,8 @@ _SYS_MOD = 0X0B
 _INT_SOURCE = 0X0C
 _WHO_AM_I = 0X0D
 _XYZ_DATA_CFG = 0X0E
+_HPF_OUT = 0b0001_0000
+
 _HP_FILTER_CUTOFF = 0X0F
 _PL_STATUS = 0X10
 _PL_CFG = 0X11
@@ -61,7 +63,14 @@ _PULSE_WIND = 0X28
 _ASLP_COUNT = 0X29
 
 _CTRL_REG1 = 0X2A
+_LOW_NOISE = 0b0000_0100
+_FREAD = 0b0000_0010
+_ACTIVE = 0b0000_0001
+
 _CTRL_REG2 = 0X2B
+_ST = 0b1000_0000
+_RST = 0b0100_0000
+_AUTO_SLEEP = 0b000_0100
 _CTRL_REG3 = 0X2C
 _CTRL_REG4 = 0X2D
 _CTRL_REG5 = 0X2E
@@ -96,7 +105,6 @@ class Accelerometer:
         self.bus_number = bus_number
         self.i2c_address = i2c_address
 
-
         try:
             self.i2cbus = SMBus(bus_number)  # Create a new I2C bus
         except FileNotFoundError as error:
@@ -108,11 +116,12 @@ class Accelerometer:
             raise ValueError(f"The i2c who am i was not 0x1a, it was 0x{who_am_i:x}")
         # write the high pass filter bit to a 1 and set to 2 g
         self.pigpio = pigpio.pi()
-        self.i2cbus.write_byte_data(self.i2c_address, _XYZ_DATA_CFG, 0x10)
+        self.i2cbus.write_byte_data(self.i2c_address, _XYZ_DATA_CFG, 0x00)  # do not set the high pass filter.  this caused the output to decrease every
+                                                                            # reading
         self.i2cbus.write_byte_data(self.i2c_address, _CTRL_REG2, 0x02)  # high resolution
         self.i2cbus.write_byte_data(self.i2c_address, _CTRL_REG4, 0x01)  # data ready interrupt enabled
         self.i2cbus.write_byte_data(self.i2c_address, _CTRL_REG5, 0x01)  # interrupt routed to pin 1
-        self.i2cbus.write_byte_data(self.i2c_address, _CTRL_REG1, (output_data_rate << 3) | 0x01)  # enable at min rate
+        self.i2cbus.write_byte_data(self.i2c_address, _CTRL_REG1, (output_data_rate << 3) | 0x04 | 0x01)  # enable at min rate
 
     def read_accelerations(self) -> list[int, int, int]:
         """
@@ -185,6 +194,7 @@ def accelerometer() -> None:
     :return:
     """
     parser = argparse.ArgumentParser()
+    parser.add_argument('--count', type=int, default=0, help='The number of accellerations to take is continious:  %(default)s)')
     parser.add_argument('--odr', type=int, default=0, help='The output data rate:  %(default)s)')
     parser.add_argument('--dev_number', type=int, default=1, help='the i2c device number:  %(default)s)')
     parser.add_argument('--i2c_address', type=int, default=0x1d, help='The i2c bus address default = %(default)s)')
@@ -192,6 +202,7 @@ def accelerometer() -> None:
     args = parser.parse_args()
     device_number = args.dev_number
     i2c_address = args.i2c_address
+    final_count = args.count
     odr = args.odr
     if not(0 <= odr <= 7):
         raise ValueError("The output data rate must be between 0 7 inclusive")
@@ -213,7 +224,10 @@ def accelerometer() -> None:
         print(f'status = 0x{status:x}')
         accelerations = accel.read_accelerations()
         print(", ".join([f'{d_accel:.4f}' for d_accel in accelerations]))
-        if counter == 10:
+        if final_count == 0:
+            continue
+        elif final_count == counter:
+
             break
         counter += 1
 
