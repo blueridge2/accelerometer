@@ -121,6 +121,9 @@ class Accelerometer:
         self.i2cbus.write_byte_data(self.i2c_address, _CTRL_REG2, 0x02)  # high resolution
         self.i2cbus.write_byte_data(self.i2c_address, _CTRL_REG4, 0x01)  # data ready interrupt enabled
         self.i2cbus.write_byte_data(self.i2c_address, _CTRL_REG5, 0x01)  # interrupt routed to pin 1
+        self.i2cbus.write_byte_data(self.i2c_address, _OFF_Z, 0xf0)  # offset for my project
+        self.i2cbus.write_byte_data(self.i2c_address, _OFF_X, 0x16)  # offsets for my project
+
         self.i2cbus.write_byte_data(self.i2c_address, _CTRL_REG1, (output_data_rate << 3) | 0x04 | 0x01)  # enable at min rate
 
     def read_accelerations(self) -> list[int, int, int]:
@@ -132,7 +135,7 @@ class Accelerometer:
         packed_struct = bytes(accelerations)    # make these a byte array
         # the acceleration list is in big endian order so the > symbol, so upack big endian
         x_accel, y_accel, z_accel = struct.unpack('>hhh', packed_struct)
-        # print(f'0x{x_accel:x}, 0x{y_accel:x}, 0x{z_accel:x}')
+        #print(f'0x{x_accel:x}, 0x{y_accel:x}, 0x{z_accel:x}')
         accel_list = [x_accel/4 * .00025, y_accel/4 * .00025, z_accel/4 * .00025]
 
         return accel_list
@@ -222,8 +225,8 @@ def accelerometer() -> None:
             status = accel.mm8451_status
             pass
         print(f'status = 0x{status:x}')
-        accelerations = accel.read_accelerations()
-        print(", ".join([f'{d_accel:.4f}' for d_accel in accelerations]))
+        x_accel, y_accel, z_accel = accel.read_accelerations()
+        print(f"x_accel ={x_accel:.4f}, y_accel = {y_accel:.4f}, z_accel = {z_accel:.4f}")
         if final_count == 0:
             continue
         elif final_count == counter:
