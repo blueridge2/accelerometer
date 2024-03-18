@@ -16,6 +16,7 @@ from smbus import SMBus
 import struct
 import signal
 import sys
+import pigpio
 
 
 _ACCELEROMETER_I2C_ADDRESS = 0x1d
@@ -86,7 +87,7 @@ class Accelerometer:
 
     """
 
-    def __init__(self, i2c_address=0x1d, bus_number=1, output_data_rate=OUTPUT_DATA_RATE_800) -> None:
+    def __init__(self, i2c_address=0x1d, bus_number=1, output_data_rate=OUTPUT_DATA_RATE_800, pi_gpio=22) -> None:
         """
         initialize the device
         :param i2c_address: the i2c address of the device
@@ -94,6 +95,7 @@ class Accelerometer:
         """
         self.bus_number = bus_number
         self.i2c_address = i2c_address
+
 
         try:
             self.i2cbus = SMBus(bus_number)  # Create a new I2C bus
@@ -105,6 +107,7 @@ class Accelerometer:
         if who_am_i != 0x1a:
             raise ValueError(f"The i2c who am i was not 0x1a, it was 0x{who_am_i:x}")
         # write the high pass filter bit to a 1 and set to 2 g
+        self.pigpio = pigpio.pi()
         self.i2cbus.write_byte_data(self.i2c_address, _XYZ_DATA_CFG, 0x10)
         self.i2cbus.write_byte_data(self.i2c_address, _CTRL_REG2, 0x02)  # high resolution
         self.i2cbus.write_byte_data(self.i2c_address, _CTRL_REG4, 0x01)  # data ready interrupt enabled
@@ -155,6 +158,7 @@ class Accelerometer:
         close the by stopping the accelerometer and resetting it
         :return:
         """
+        self.pigpio.stop()
         self.i2cbus.write_byte_data(self.i2c_address, _CTRL_REG1, 0x00)  # surn off the enable
         self.i2cbus.write_byte_data(self.i2c_address, _CTRL_REG2, 0b0100_0000)  # reset bit is bit 6 0100_0000
         reset_bit = 0b0100_0000
@@ -165,12 +169,14 @@ class Accelerometer:
             except OSError:
                 reset_bit = 0b0100_0000
 
-    def read_range(self):
+    @property
+    def read_g_range(self):
         """
         read the range register of the accelerometer
         :return:
         """
-        self.i2cbus.read_byte_data(self.i2c_address, _XYZ_DATA_CFG) & 0x3
+        mm8451_g_range = self.i2cbus.read_byte_data(self.i2c_address, _XYZ_DATA_CFG) & 0x3
+        return mm8451_g_range
 
 
 def accelerometer() -> None:
