@@ -94,9 +94,16 @@ class Accelerometer:
     This runs the mm8451 digital 3 axit accelerometer, it configures the accelerometer for +/- 2 gs, in high resolution mode(154 bits for the raspberry pi
     this seems only to run on the gpio i2c because this is the only I2c that supports clock stretching.
 
+    add the line below to the /boot/config/txt
+    dtoverlay=i2c-gpio,i2c_gpio_sda=23,i2c_gpio_scl=24,i2c_gpio_delay_us=2,bus=5
+
+    this project also uses pigpio
+    see https://abyz.me.uk/rpi/pigpio/index.html for the documentation
+    Please wire I1 to gpio 6 on the raspberry pi.
+
     """
 
-    def __init__(self, i2c_address=0x1d, bus_number=1, output_data_rate=OUTPUT_DATA_RATE_800, pi_gpio=22) -> None:
+    def __init__(self, i2c_address=0x1d, bus_number=5, output_data_rate=OUTPUT_DATA_RATE_800, pi_gpio=22) -> None:
         """
         initialize the device
         :param i2c_address: the i2c address of the device
@@ -115,15 +122,16 @@ class Accelerometer:
         if who_am_i != 0x1a:
             raise ValueError(f"The i2c who am i was not 0x1a, it was 0x{who_am_i:x}")
         # write the high pass filter bit to a 1 and set to 2 g
-        self.pigpio = pigpio.pi()
+
         self.i2cbus.write_byte_data(self.i2c_address, _XYZ_DATA_CFG, 0x00)  # do not set the high pass filter.  this caused the output to decrease every
-                                                                            # reading
+                                                                            #  reading, The reason for this for a static which is not moving, that is a
+                                                                            #  very low frequency signal, and it will get filtered out because only
+                                                                            # only high frequency events can be passed.
         self.i2cbus.write_byte_data(self.i2c_address, _CTRL_REG2, 0x02)  # high resolution
         self.i2cbus.write_byte_data(self.i2c_address, _CTRL_REG4, 0x01)  # data ready interrupt enabled
         self.i2cbus.write_byte_data(self.i2c_address, _CTRL_REG5, 0x01)  # interrupt routed to pin 1
         self.i2cbus.write_byte_data(self.i2c_address, _OFF_Z, 0xf0)  # offset for my project
         self.i2cbus.write_byte_data(self.i2c_address, _OFF_X, 0x16)  # offsets for my project
-
         self.i2cbus.write_byte_data(self.i2c_address, _CTRL_REG1, (output_data_rate << 3) | 0x04 | 0x01)  # enable at min rate
 
     def read_accelerations(self) -> list[int, int, int]:
@@ -135,7 +143,7 @@ class Accelerometer:
         packed_struct = bytes(accelerations)    # make these a byte array
         # the acceleration list is in big endian order so the > symbol, so upack big endian
         x_accel, y_accel, z_accel = struct.unpack('>hhh', packed_struct)
-        #print(f'0x{x_accel:x}, 0x{y_accel:x}, 0x{z_accel:x}')
+        # print(f'0x{x_accel:x}, 0x{y_accel:x}, 0x{z_accel:x}')
         accel_list = [x_accel/4 * .00025, y_accel/4 * .00025, z_accel/4 * .00025]
 
         return accel_list
@@ -170,7 +178,6 @@ class Accelerometer:
         close the by stopping the accelerometer and resetting it
         :return:
         """
-        self.pigpio.stop()
         self.i2cbus.write_byte_data(self.i2c_address, _CTRL_REG1, 0x00)  # surn off the enable
         self.i2cbus.write_byte_data(self.i2c_address, _CTRL_REG2, 0b0100_0000)  # reset bit is bit 6 0100_0000
         reset_bit = 0b0100_0000
@@ -197,7 +204,8 @@ def accelerometer() -> None:
     :return:
     """
     parser = argparse.ArgumentParser()
-    parser.add_argument('--count', type=int, default=0, help='The number of accellerations to take is continious:  %(default)s)')
+    parser.add_argument('--gpio', type=int, default=6, help='The GPIO pin for the input:  %(default)s)')
+    parser.add_argument('--count', type=int, default=0, help='The number of accelerations readings to take. 0 is continuous:  %(default)s)')
     parser.add_argument('--odr', type=int, default=0, help='The output data rate:  %(default)s)')
     parser.add_argument('--dev_number', type=int, default=1, help='the i2c device number:  %(default)s)')
     parser.add_argument('--i2c_address', type=int, default=0x1d, help='The i2c bus address default = %(default)s)')
@@ -207,8 +215,13 @@ def accelerometer() -> None:
     i2c_address = args.i2c_address
     final_count = args.count
     odr = args.odr
+    gpio_pin = args.gpio
     if not(0 <= odr <= 7):
         raise ValueError("The output data rate must be between 0 7 inclusive")
+
+    gpio = pigpio.pi()
+    gpio.set_mode(gpio_pin, pigpio.INPUT)
+
     accel = Accelerometer(i2c_address, device_number, odr)
 
     def signal_handler(sig, frame):
@@ -220,11 +233,13 @@ def accelerometer() -> None:
     signal.signal(signal.SIGINT, signal_handler)
     counter = 0
     while True:
-        status = accel.mm8451_status
-        while not (status & 0b0000_1000):    # loop till status becomes 1
-            status = accel.mm8451_status
-            pass
-        print(f'status = 0x{status:x}')
+        gpio_level = gpio.read(gpio_pin)
+        # status = accel.mm8451_status
+        while gpio_level:    # loop till all status becomes 1
+            gpio_level = gpio.read(gpio_pin)
+
+        gpio_level = gpio.read(gpio_pin)
+        # print(f'gpio level ={gpio_level}')
         x_accel, y_accel, z_accel = accel.read_accelerations()
         print(f"x_accel ={x_accel:.4f}, y_accel = {y_accel:.4f}, z_accel = {z_accel:.4f}")
         if final_count == 0:
