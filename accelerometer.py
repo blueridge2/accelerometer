@@ -12,10 +12,10 @@
 # ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH
 # THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 import argparse
-from smbus import SMBus
-import struct
 import signal
+import struct
 import sys
+from smbus import SMBus  # pylint: disable=E0611
 import pigpio
 
 
@@ -91,7 +91,8 @@ OUTPUT_DATA_RATE_1_56 = 0x7
 
 class Accelerometer:
     """
-    This runs the mm8451 digital 3 axit accelerometer, it configures the accelerometer for +/- 2 gs, in high resolution mode(154 bits for the raspberry pi
+    This runs the mm8451 digital 3 axit accelerometer, it configures the accelerometer for +/- 2 gs, in
+    high resolution mode(154 bits for the raspberry pi
     this seems only to run on the gpio i2c because this is the only I2c that supports clock stretching.
 
     add the line below to the /boot/config/txt
@@ -120,15 +121,16 @@ class Accelerometer:
             raise error
 
         who_am_i = self.i2cbus.read_byte_data(i2c_address, _WHO_AM_I)
-        print(f'The  id = 0x{who_am_i:x}. If the id = 0x1a the this is probably an mm8451.\nIf the id is not 0x1a, this this is not an mm8451 3 axis accelerometer')
+        print(f'The  id = 0x{who_am_i:x}. If the id = 0x1a the this is probably an mm8451.\nIf the id is not 0x1a, '
+              f'this this is not an mm8451 3 axis accelerometer')
         if who_am_i != 0x1a:
             raise ValueError(f"The i2c who am i was not 0x1a, it was 0x{who_am_i:x}")
         # write the high pass filter bit to a 1 and set to 2 g
 
-        self.i2cbus.write_byte_data(self.i2c_address, _XYZ_DATA_CFG, 0x00)  # do not set the high pass filter.  this caused the output to decrease every
-                                                                            #  reading, The reason for this for a static which is not moving, that is a
-                                                                            #  very low frequency signal, and it will get filtered out because only
-                                                                            # only high frequency events can be passed.
+        self.i2cbus.write_byte_data(self.i2c_address, _XYZ_DATA_CFG, 0x00)  # do not set the high pass filter.
+        # This caused the output to decrease every time the value is read.
+        #  The reason for this for a static which is not moving, that is a
+        #  very low frequency signal, and it will get filtered out because only high frequency events can be passed.
         self.i2cbus.write_byte_data(self.i2c_address, _CTRL_REG2, 0x02)  # high resolution
         self.i2cbus.write_byte_data(self.i2c_address, _CTRL_REG4, 0x01)  # data ready interrupt enabled
         self.i2cbus.write_byte_data(self.i2c_address, _CTRL_REG5, 0x01)  # interrupt routed to pin 1
@@ -224,15 +226,15 @@ def accelerometer() -> None:
     final_count = args.count
     odr = args.odr
     gpio_pin = args.gpio
-    if not(0 <= odr <= 7):
-        raise ValueError("The output data rate must be between 0 7 inclusive")
+    if not 0 <= odr <= 7:
+        raise ValueError(f"The output data rate must be between 0 7 inclusive. You entered {odr}")
 
     gpio = pigpio.pi()
     gpio.set_mode(gpio_pin, pigpio.INPUT)
 
     accel = Accelerometer(i2c_address, device_number, odr)
 
-    def signal_handler(sig, frame):
+    def signal_handler(sig, frame):    # pylint: disable=W0613
         print('You pressed control C close the accelerometer and sys.exit(0)')
         accel.close_accelerometer()
         sys.exit(0)
@@ -251,9 +253,8 @@ def accelerometer() -> None:
         x_accel, y_accel, z_accel = accel.read_accelerations()
         print(f"x_accel ={x_accel:.4f}, y_accel = {y_accel:.4f}, z_accel = {z_accel:.4f}")
         if final_count == 0:
-            continue
+            pass
         elif final_count == counter:
-
             break
         counter += 1
 
