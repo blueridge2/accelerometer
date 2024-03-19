@@ -1,0 +1,4 @@
+#~/bin/bash
+flake8
+export PYTHONPATH=.:$PYTHONPATH
+pylint --rcfile .pylintrc $(pwd)
