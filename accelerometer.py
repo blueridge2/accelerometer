@@ -98,16 +98,18 @@ class Accelerometer:
     dtoverlay=i2c-gpio,i2c_gpio_sda=23,i2c_gpio_scl=24,i2c_gpio_delay_us=2,bus=5
 
     this project also uses pigpio
-    see https://abyz.me.uk/rpi/pigpio/index.html for the documentation
+    see 'Pigio: https://abyz.me.uk/rpi/pigpio/index.html' for the documentation
     Please wire I1 to gpio 6 on the raspberry pi.
 
     """
 
-    def __init__(self, i2c_address=0x1d, bus_number=5, output_data_rate=OUTPUT_DATA_RATE_800, pi_gpio=22) -> None:
+    def __init__(self, i2c_address=0x1d, bus_number=5, output_data_rate=OUTPUT_DATA_RATE_800) -> None:
         """
         initialize the device
+
         :param i2c_address: the i2c address of the device
         :param bus_number: number the bus number of the i2c
+
         """
         self.bus_number = bus_number
         self.i2c_address = i2c_address
@@ -137,7 +139,8 @@ class Accelerometer:
     def read_accelerations(self) -> list[int, int, int]:
         """
         read the accelerations from the device
-        :return: a list of accelerations, x, y and z in g's
+
+        :return: a list of ints accelerations, x, y and z in g's
         """
         accelerations = self.i2cbus.read_i2c_block_data(self.i2c_address, _OUT_X_MSB, 6)  # this returns a list of 6 bytes
         packed_struct = bytes(accelerations)    # make these a byte array
@@ -152,7 +155,9 @@ class Accelerometer:
     def mm8451_status(self) -> int:
         """
         read the status byte add address 0
+
         :return: the int status byte
+        :rtype: int
         """
         status = self.i2cbus.read_byte_data(self.i2c_address, _STATUS)
         return status
@@ -168,6 +173,7 @@ class Accelerometer:
         :param msb:
         :param lsb:
         :return: int which is signed.
+        :rtype: int
         """
         value = (msb << 8) | lsb
         sign_extend = (value & 0xffff) - 0x8000 if value & 0x8000 else value
@@ -176,7 +182,8 @@ class Accelerometer:
     def close_accelerometer(self) -> None:
         """
         close the by stopping the accelerometer and resetting it
-        :return:
+
+        :return: None
         """
         self.i2cbus.write_byte_data(self.i2c_address, _CTRL_REG1, 0x00)  # surn off the enable
         self.i2cbus.write_byte_data(self.i2c_address, _CTRL_REG2, 0b0100_0000)  # reset bit is bit 6 0100_0000
@@ -192,7 +199,8 @@ class Accelerometer:
     def read_g_range(self):
         """
         read the range register of the accelerometer
-        :return:
+        :return: the g range
+
         """
         mm8451_g_range = self.i2cbus.read_byte_data(self.i2c_address, _XYZ_DATA_CFG) & 0x3
         return mm8451_g_range
