@@ -12,6 +12,7 @@
 # ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH
 # THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 import argparse
+import math
 import signal
 import struct
 import sys
@@ -251,7 +252,10 @@ def accelerometer() -> None:
         gpio_level = gpio.read(gpio_pin)
         # print(f'gpio level ={gpio_level}')
         x_accel, y_accel, z_accel = accel.read_accelerations()
-        print(f"x_accel ={x_accel:.4f}, y_accel = {y_accel:.4f}, z_accel = {z_accel:.4f}")
+        angle_sine = x_accel / (x_accel ** 2 + z_accel**2)
+        angle_degrees = math.asin(angle_sine) * 180 / math.pi
+        print(f"x_accel ={x_accel:.4f} g's, y_accel = {y_accel:.4f} g's, z_accel = {z_accel:.4f} g's angle = {angle_degrees:.2f} degrees")
+
         if final_count == 0:
             pass
         elif final_count == counter:
