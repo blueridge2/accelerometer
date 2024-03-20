@@ -14,7 +14,7 @@
 """
 This is a program that runs the Freescale mm8451 3 axis accelerometer which is attached to an I2C port on the rasberry pi.
 
-This project uses the mm8451 from Adafruit 'MM8451: <https://www.adafruit.com/search?q=mm8451>'
+This project uses the mm8451 from `Adafruit MM8451 web page <https://www.adafruit.com/search?q=mm8451>`_
 
 This chip uses repeated stops, and must use the gpio_i2c device driver.
 Add the line below to the /boot/config/txt
@@ -22,7 +22,7 @@ dtoverlay=i2c-gpio,i2c_gpio_sda=23,i2c_gpio_scl=24,i2c_gpio_delay_us=2,bus=5
 
 
 This project also uses pigpio
-see Pigio web page: <https://abyz.me.uk/rpi/pigpio/index.html> for the documentation
+see `Pigio web page <https://abyz.me.uk/rpi/pigpio/index.html>`_ for the documentation
 Please wire I1 to gpio 6 on the raspberry pi.
 
 How to run the program
