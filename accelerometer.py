@@ -4,13 +4,62 @@
 # Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"),
 # to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute,
 # sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so,
-# subject to the following conditions:
+# subject to the following conditions
 # The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
 # OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR
 # ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH
 # THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+"""
+    This is a program that runs the Freescale mm8451 3 axis accelerometer which is attached to an I2C port on the rasberry pi.
+
+    This project uses the mm8451 from Adafruit 'MM8451: <https://www.adafruit.com/search?q=mm8451>'
+
+    This chip uses repeated stops, and must use the gpio_i2c device driver.
+    Add the line below to the /boot/config/txt
+    dtoverlay=i2c-gpio,i2c_gpio_sda=23,i2c_gpio_scl=24,i2c_gpio_delay_us=2,bus=5
+
+
+    This project also uses pigpio
+        see 'Pigio: <https://abyz.me.uk/rpi/pigpio/index.html>' for the documentation
+        Please wire I1 to gpio 6 on the raspberry pi.
+
+    How to run the program
+    command line and options ::
+    accelerometer.py [-h] [--gpio GPIO] [--count COUNT] [--odr ODR] [--dev_number DEV_NUMBER] [--i2c_address I2C_ADDRESS]
+        --gpio:  the gpio where the interrupt pin will be connected, the default is 6 so wire I1 from the adafruit card to GPIO 6
+        --count: the number of times to read the acceleration registers, 0 means continuous, with no stop.  Use control c to exit
+        --odr: the output data rate, from 0 to 7 with 0 being 800 hz and 7 being 1.56 hz.
+
+
+        +----+-----+----+---------+--------+
+        |DR2 |DR1  |DR0 |ODR      |Period  |
+        +====+=====+====+=========+========+
+        |0   |0    |0   |800 Hz   |1.25 ms |
+        +----+-----+----+---------+--------+
+        |0   |0    |1   |400 Hz   |2.5 ms  |
+        +----+-----+----+---------+--------+
+        |0   |1    |0   |200 Hz   |5 ms    |
+        +----+-----+----+---------+--------+
+        |0   |1    |1   |100 Hz   |10 ms   |
+        +----+-----+----+---------+--------+
+        |1   |0    |0   |50 Hz    |20 ms   |
+        +----+-----+----+---------+--------+
+        |1   |0    |1   |12.5 Hz  |80 ms   |
+        +----+-----+----+---------+--------+
+        |1   |1    |0   |6.25 Hz  |160 ms  |
+        +----+-----+----+---------+--------+
+        |1   |1    |1   |1.56 Hz  |640 ms  |
+        +----+-----+----+---------+--------+
+
+    ::
+    --dev_number;  The i2c device number, this will be the number that is appended to the base i2c name which is /dev/i2c-, if
+            dev_number = 5 then the i2c device used will be /dev/i2c-5
+    --i2c_address: this is the i2c address of the accelerometer.  This is 0x1d for this breakout board
+
+
+"""
 import argparse
 import math
 import signal
