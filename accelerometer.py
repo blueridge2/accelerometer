@@ -42,7 +42,7 @@ Sample command line below::
 --dev_number number     The i2c device number, This will be the number that is appended to the base i2c name which /dev/i2c-
                         if dev_number = 5 then the i2c device used will be /dev/i2c-5
 
---i2c_address number    This is the i2c address of the accelerometer.  This is 0x1d for this breakout board.
+--i2c_address number    This is the i2c slave address of the accelerometer.  This is 0x1d for this breakout board.
 
 Below is the output data rates
 
