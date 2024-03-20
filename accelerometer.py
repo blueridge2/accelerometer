@@ -48,25 +48,26 @@ Below is the output data rates
 
 Output Data Rate Values
 
-    +----+-----+----+---------+--------+
-    |DR2 |DR1  |DR0 |ODR      |Period  |
-    +====+=====+====+=========+========+
-    |0   |0    |0   |800 Hz   |1.25 ms |
-    +----+-----+----+---------+--------+
-    |0   |0    |1   |400 Hz   |2.5 ms  |
-    +----+-----+----+---------+--------+
-    |0   |1    |0   |200 Hz   |5 ms    |
-    +----+-----+----+---------+--------+
-    |0   |1    |1   |100 Hz   |10 ms   |
-    +----+-----+----+---------+--------+
-    |1   |0    |0   |50 Hz    |20 ms   |
-    +----+-----+----+---------+--------+
-    |1   |0    |1   |12.5 Hz  |80 ms   |
-    +----+-----+----+---------+--------+
-    |1   |1    |0   |6.25 Hz  |160 ms  |
-    +----+-----+----+---------+--------+
-    |1   |1    |1   |1.56 Hz  |640 ms  |
-    +----+-----+----+---------+--------+
+    +----+-----+----+-----+---------+--------+
+    |DR2 |DR1  |DR0 | VAL |ODR      |Period  |
+    +====+=====+====+=====+=========+========+
+    |0   |0    |0   | 0   |800 Hz   |1.25 ms |
+    +----+-----+----+-----+---------+--------+
+    |0   |0    |1   | 1   |400 Hz   |2.5 ms  |
+    +----+-----+----+-----+---------+--------+
+    |0   |1    |0   | 2   |200 Hz   |5 ms    |
+    +----+-----+----+-----+---------+--------+
+    |0   |1    |1   | 3   |100 Hz   |10 ms   |
+    +----+-----+----+-----+---------+--------+
+    |1   |0    |0   | 4   |50 Hz    |20 ms   |
+    +----+-----+----+-----+---------+--------+
+    |1   |0    |1   | 5   |12.5 Hz  |80 ms   |
+    +----+-----+----+-----+---------+--------+
+    |1   |1    |0   | 6   |6.25 Hz  |160 ms  |
+    +----+-----+----+-----+---------+--------+
+    |1   |1    |1   | 7   |1.56 Hz  |640 ms  |
+    +----+-----+----+-----+---------+--------+
+
 
 
 
@@ -201,9 +202,12 @@ class Accelerometer:
         self.i2cbus.write_byte_data(self.i2c_address, _OFF_X, 0x16)  # offsets for my project
         self.i2cbus.write_byte_data(self.i2c_address, _CTRL_REG1, (output_data_rate << 3) | 0x04 | 0x01)  # enable at min rate
 
-    def read_accelerations(self) -> list[int, int, int]:
+    def read_accelerations(self) -> list[float, float, float]:
         """
-        read the accelerations from the device
+        Read the accelerations from the MM8451 and return a list of floats in g's
+            #. List element 0 will be the x
+            #. List element 1 will be the y
+            #. List element 2 will be the z
 
         :return: a list of ints accelerations, x, y and z in g's
         """
@@ -219,7 +223,7 @@ class Accelerometer:
     @property
     def mm8451_status(self) -> int:
         """
-        read the status byte add address 0
+        Read the status byte add address 0
 
         :return: the int status byte
         :rtype: int
@@ -235,8 +239,8 @@ class Accelerometer:
         the read smbus returns a list of ints which are between 0 and 255 and these are not signed
         So,
 
-        :param msb:
-        :param lsb:
+        :param msb: the most significant byte of the short
+        :param lsb: the least significant byte of the short
         :return: int which is signed.
         :rtype: int
         """
