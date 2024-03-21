@@ -15,6 +15,7 @@
 This is a program that runs the Freescale mm8451 3 axis accelerometer which is attached to an I2C port on the rasberry pi.
 
 This project uses the mm8451 from `Adafruit MM8451 web page <https://www.adafruit.com/search?q=mm8451>`_
+The datasheet for MM8451 is located here `MMA8451 Datasheet <https://cdn-shop.adafruit.com/datasheets/MMA8451Q-1.pdf>`_
 
 This chip uses repeated stops, and must use the gpio_i2c device driver.
 Add the line below to the /boot/config/txt
