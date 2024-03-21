@@ -19,9 +19,7 @@ The datasheet for MM8451 is located here `MMA8451 Datasheet <https://cdn-shop.ad
 
 This chip uses repeated stops, and must use the gpio_i2c device driver.
 Add the line below to the /boot/config/txt
-dtoverlay=i2c-gpio,i2c_gpio_sda=23,i2c_gpio_scl=24,i2c_gpio_delay_us=2,bus=5
-
-
+  dtoverlay=i2c-gpio,i2c_gpio_sda=23,i2c_gpio_scl=24,i2c_gpio_delay_us=2,bus=5
 This project also uses pigpio
 see `Pigio web page <https://abyz.me.uk/rpi/pigpio/index.html>`_ for the documentation
 Please wire I1 to gpio 6 on the raspberry pi.
@@ -207,9 +205,9 @@ class Accelerometer:
             #. List element 0 will be the x acceleration
             #. List element 1 will be the y acceleration
             #. List element 2 will be the z acceleration
-
         :return: a list of ints accelerations, x, y and z in g's
         :rtype: list of floats
+
         """
         accelerations = self.i2cbus.read_i2c_block_data(self.i2c_address, _OUT_X_MSB, 6)  # this returns a list of 6 bytes
         packed_struct = bytes(accelerations)    # make these a byte array
