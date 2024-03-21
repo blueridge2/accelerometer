@@ -48,30 +48,25 @@ Below is the output data rates
 
 Output Data Rate Values
 
-    +----+-----+----+-----+---------+--------+
-    |DR2 |DR1  |DR0 | VAL |ODR      |Period  |
-    +====+=====+====+=====+=========+========+
-    |0   |0    |0   | 0   |800 Hz   |1.25 ms |
-    +----+-----+----+-----+---------+--------+
-    |0   |0    |1   | 1   |400 Hz   |2.5 ms  |
-    +----+-----+----+-----+---------+--------+
-    |0   |1    |0   | 2   |200 Hz   |5 ms    |
-    +----+-----+----+-----+---------+--------+
-    |0   |1    |1   | 3   |100 Hz   |10 ms   |
-    +----+-----+----+-----+---------+--------+
-    |1   |0    |0   | 4   |50 Hz    |20 ms   |
-    +----+-----+----+-----+---------+--------+
-    |1   |0    |1   | 5   |12.5 Hz  |80 ms   |
-    +----+-----+----+-----+---------+--------+
-    |1   |1    |0   | 6   |6.25 Hz  |160 ms  |
-    +----+-----+----+-----+---------+--------+
-    |1   |1    |1   | 7   |1.56 Hz  |640 ms  |
-    +----+-----+----+-----+---------+--------+
-
-
-
-
-
+    +----+----+----+-----+---------+--------+
+    |DR2 |DR1 |DR0 | VAL |ODR      |Period  |
+    +====+====+====+=====+=========+========+
+    |0   |0   |0   | 0   |800 Hz   |1.25 ms |
+    +----+----+----+-----+---------+--------+
+    |0   |0   |1   | 1   |400 Hz   |2.5 ms  |
+    +----+----+----+-----+---------+--------+
+    |0   |1   |0   | 2   |200 Hz   |5 ms    |
+    +----+----+----+-----+---------+--------+
+    |0   |1   |1   | 3   |100 Hz   |10 ms   |
+    +----+----+----+-----+---------+--------+
+    |1   |0   |0   | 4   |50 Hz    |20 ms   |
+    +----+----+----+-----+---------+--------+
+    |1   |0   |1   | 5   |12.5 Hz  |80 ms   |
+    +----+----+----+-----+---------+--------+
+    |1   |1   |0   | 6   |6.25 Hz  |160 ms  |
+    +----+----+----+-----+---------+--------+
+    |1   |1   |1   | 7   |1.56 Hz  |640 ms  |
+    +----+----+----+-----+---------+--------+
 
 """
 import argparse
@@ -159,21 +154,22 @@ class Accelerometer:
     high resolution mode(154 bits for the raspberry pi
     this seems only to run on the gpio i2c because this is the only I2c that supports clock stretching.
 
-    add the line below to the /boot/config/txt
-    dtoverlay=i2c-gpio,i2c_gpio_sda=23,i2c_gpio_scl=24,i2c_gpio_delay_us=2,bus=5
+    Add the line below to the /boot/config.txt
+        dtoverlay=i2c-gpio,i2c_gpio_sda=23,i2c_gpio_scl=24,i2c_gpio_delay_us=2,bus=5
 
-    this project also uses pigpio
-    see 'Pigio: https://abyz.me.uk/rpi/pigpio/index.html' for the documentation
-    Please wire I1 to gpio 6 on the raspberry pi.
+    This project also uses pigpio
+        see 'Pigio: https://abyz.me.uk/rpi/pigpio/index.html' for the documentation
+
+    Please wire I1 of the Adafruit Breakout Board to GPIO 6 on the Raspberry Pi.
 
     """
 
     def __init__(self, i2c_address=0x1d, bus_number=5, output_data_rate=OUTPUT_DATA_RATE_800) -> None:
         """
-        initialize the device
+        Initialize the device
 
-        :param i2c_address: the i2c address of the device
-        :param bus_number: number the bus number of the i2c
+        :param i2c_address: The i2c address of the device
+        :param bus_number: Number the bus number of the i2c
 
         """
         self.bus_number = bus_number
@@ -205,11 +201,14 @@ class Accelerometer:
     def read_accelerations(self) -> list[float, float, float]:
         """
         Read the accelerations from the MM8451 and return a list of floats in g's
-            #. List element 0 will be the x
-            #. List element 1 will be the y
-            #. List element 2 will be the z
+
+        The divide by four is because the MM8451 returns a short with the lower to bits set to 0,
+            #. List element 0 will be the x acceleration
+            #. List element 1 will be the y acceleration
+            #. List element 2 will be the z acceleration
 
         :return: a list of ints accelerations, x, y and z in g's
+        :rtype: list of floats
         """
         accelerations = self.i2cbus.read_i2c_block_data(self.i2c_address, _OUT_X_MSB, 6)  # this returns a list of 6 bytes
         packed_struct = bytes(accelerations)    # make these a byte array
@@ -225,7 +224,7 @@ class Accelerometer:
         """
         Read the status byte add address 0
 
-        :return: the int status byte
+        :return: The int status byte of the MM8451
         :rtype: int
         """
         status = self.i2cbus.read_byte_data(self.i2c_address, _STATUS)
@@ -234,15 +233,15 @@ class Accelerometer:
     @staticmethod
     def bytes_to_short(msb: int, lsb: int) -> int:
         """
-        take a byte amd makes a short with sign extend and divide by 4
-        this is because the lower to bits of each acceleration are not used.
+        Take two bytes amd makes a short with sign extend and divide by 4
+        This is because the lower to bits of each acceleration are not used.
         the read smbus returns a list of ints which are between 0 and 255 and these are not signed
         So,
 
-        :param msb: the most significant byte of the short
-        :param lsb: the least significant byte of the short
-        :return: int which is signed.
-        :rtype: int
+        :param msb: The most significant byte of the short
+        :param lsb: The least significant byte of the short
+        :return: A short shifted right by 2
+        :rtype: short
         """
         value = (msb << 8) | lsb
         sign_extend = (value & 0xffff) - 0x8000 if value & 0x8000 else value
@@ -250,7 +249,7 @@ class Accelerometer:
 
     def close_accelerometer(self) -> None:
         """
-        close the by stopping the accelerometer and resetting it
+        Close the by stopping the accelerometer and resetting it
 
         :return: None
         """
@@ -268,6 +267,7 @@ class Accelerometer:
     def read_g_range(self):
         """
         read the range register of the accelerometer
+
         :return: the g range
 
         """
@@ -277,14 +277,15 @@ class Accelerometer:
 
 def accelerometer() -> None:
     """
-    start up the accelerometer
-    :return:
+    Start up the accelerometer program and parse the command line arguments
+
+    :return: None
     """
     parser = argparse.ArgumentParser()
     parser.add_argument('--gpio', type=int, default=6, help='The GPIO pin for the input:  %(default)s)')
     parser.add_argument('--count', type=int, default=0, help='The number of accelerations readings to take. 0 is continuous:  %(default)s)')
     parser.add_argument('--odr', type=int, default=0, help='The output data rate:  %(default)s)')
-    parser.add_argument('--dev_number', type=int, default=1, help='the i2c device number:  %(default)s)')
+    parser.add_argument('--dev_number', type=int, default=1, help='The i2c device number:  %(default)s)')
     parser.add_argument('--i2c_address', type=int, default=0x1d, help='The i2c bus address default = %(default)s)')
 
     args = parser.parse_args()
@@ -315,7 +316,6 @@ def accelerometer() -> None:
         while gpio_level:    # loop till all status becomes 1
             gpio_level = gpio.read(gpio_pin)
 
-        gpio_level = gpio.read(gpio_pin)
         # print(f'gpio level ={gpio_level}')
         x_accel, y_accel, z_accel = accel.read_accelerations()
         angle_sine = x_accel / (x_accel ** 2 + z_accel**2)
@@ -333,6 +333,3 @@ def accelerometer() -> None:
 
 if __name__ == '__main__':
     accelerometer()
-
-
-# See PyCharm help at https://www.jetbrains.com/help/pycharm/
