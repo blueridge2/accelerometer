@@ -18,8 +18,10 @@ This project uses the mm8451 from `Adafruit MM8451 web page <https://www.adafrui
 The datasheet for MM8451 is located here `MMA8451 Datasheet <https://cdn-shop.adafruit.com/datasheets/MMA8451Q-1.pdf>`_
 
 This chip uses repeated stops, and must use the gpio_i2c device driver.
+
 Add the line below to the /boot/config/txt
   dtoverlay=i2c-gpio,i2c_gpio_sda=23,i2c_gpio_scl=24,i2c_gpio_delay_us=2,bus=5
+
 This project also uses pigpio
 see `Pigio web page <https://abyz.me.uk/rpi/pigpio/index.html>`_ for the documentation
 Please wire I1 to gpio 6 on the raspberry pi.
@@ -68,13 +70,21 @@ Output Data Rate Values
     +----+----+----+-----+---------+--------+
 
 """
+import atexit
 import argparse
+import logging
 import math
+import logging
+import logging.config
+import logging.handlers
+import queue
 import signal
 import struct
 import sys
 from smbus import SMBus  # pylint: disable=E0611
 import pigpio
+
+import mpc23017
 
 
 _ACCELEROMETER_I2C_ADDRESS = 0x1d
@@ -153,11 +163,11 @@ class Accelerometer:
     high resolution mode(154 bits for the raspberry pi
     this seems only to run on the gpio i2c because this is the only I2c that supports clock stretching.
 
-    Add the line below to the /boot/config.txt
+    Add the line below to the /boot/config.txt::
         dtoverlay=i2c-gpio,i2c_gpio_sda=23,i2c_gpio_scl=24,i2c_gpio_delay_us=2,bus=5
 
-    This project also uses pigpio
-        see 'Pigio: https://abyz.me.uk/rpi/pigpio/index.html' for the documentation
+    This project also uses pigpio::
+        see 'Pigio: https://abyz.me.uk/rpi/pigpio/index.html'_ for the documentation
 
     Please wire I1 of the Adafruit Breakout Board to GPIO 6 on the Raspberry Pi.
 
@@ -205,6 +215,7 @@ class Accelerometer:
             #. List element 0 will be the x acceleration
             #. List element 1 will be the y acceleration
             #. List element 2 will be the z acceleration
+
         :return: a list of ints accelerations, x, y and z in g's
         :rtype: list of floats
 
@@ -274,19 +285,76 @@ class Accelerometer:
         return mm8451_g_range
 
 
-def accelerometer() -> None:
+def setup_logging(logging_config_dict: dict) -> logging.getLogger:
+    """
+    Set up the logging
+    :param logging_config_dict:  the logging config dict
+
+    :return:
+    """
+
+    que = queue.Queue(-1)
+    logging.config.dictConfig(logging_config_dict)
+    queue_handler = logging.handlers.QueueHandler(que)
+    # add teh list of handlers to the queue listener
+    listener = logging.handlers.QueueListener(que, *logging.getLogger().handlers)
+    root = logging.getLogger('xx')
+    root.addHandler(queue_handler)
+    listener.start()
+    print(f' queue handler name = {logging.getLogger().handlers}')
+
+    return root
+
+
+def run_accelerometer() -> None:
     """
     Start up the accelerometer program and parse the command line arguments
 
     :return: None
     """
+
+    logging_config = {
+        "version": 1,
+        "disable_existing_loggers": False,
+        "formatters": {
+            "simple": {
+                "format": "%(levelname)s: %(message)s"
+            }
+        },
+        "handlers": {
+            "stdout": {
+                "class": "logging.StreamHandler",
+                "formatter": "simple",
+                "stream": "ext://sys.stdout"
+            }
+        },
+        "loggers": {
+            "root": {
+                "level": "INFO",
+                "handlers": [
+                    "stdout"
+                ]
+            }
+        }
+    }
     parser = argparse.ArgumentParser()
     parser.add_argument('--gpio', type=int, default=6, help='The GPIO pin for the input:  %(default)s)')
     parser.add_argument('--count', type=int, default=0, help='The number of accelerations readings to take. 0 is continuous:  %(default)s)')
     parser.add_argument('--odr', type=int, default=0, help='The output data rate:  %(default)s)')
     parser.add_argument('--dev_number', type=int, default=1, help='The i2c device number:  %(default)s)')
     parser.add_argument('--i2c_address', type=int, default=0x1d, help='The i2c bus address default = %(default)s)')
+    logger = setup_logging(logging_config)
 
+    # logger = logging.getLogger(__name__)
+    # logger.debug("debug message", extra={"x": "hello"})
+    logger.info("info message")
+    # logger.warning("warning message")
+    # logger.error("error message")
+    # logger.critical("critical message")
+
+    # logger.info('this is a test')
+
+    exit(-1)
     args = parser.parse_args()
     device_number = args.dev_number
     i2c_address = args.i2c_address
@@ -331,4 +399,4 @@ def accelerometer() -> None:
 
 
 if __name__ == '__main__':
-    accelerometer()
+    run_accelerometer()
