@@ -285,25 +285,41 @@ class Accelerometer:
         return mm8451_g_range
 
 
-def setup_logging(logging_config_dict: dict) -> logging.getLogger:
+def setup_logging(name: str = 'main', log_file_name: str = "accelerometer.log", log_level: int = logging.DEBUG) -> logging.getLogger:
     """
-    Set up the logging
-    :param logging_config_dict:  the logging config dict
+    Set up the logging for the program, this uses a queue config so the that log IO does not block
+    :param name: the name of the logger
+    :param log_file_name: the name of the log file, the mode is overwrite
+    :param log_level: the debug level of the logger
 
-    :return:
+    :return: the logger created
     """
-
+    log_format = '%(asctime)s-%(name)s  %(levelname)s %(message)s'
+    logging.basicConfig(level=log_level)
     que = queue.Queue(-1)
-    logging.config.dictConfig(logging_config_dict)
-    queue_handler = logging.handlers.QueueHandler(que)
-    # add teh list of handlers to the queue listener
-    listener = logging.handlers.QueueListener(que, *logging.getLogger().handlers)
-    root = logging.getLogger('xx')
-    root.addHandler(queue_handler)
-    listener.start()
-    print(f' queue handler name = {logging.getLogger().handlers}')
+    logger = logging.getLogger(name)
+    logger.propagate = False
+    formatter = logging.Formatter(log_format)
 
-    return root
+    file_handler = logging.FileHandler(log_file_name, mode='w')
+    file_handler.setLevel(log_level)
+    file_handler.setFormatter(formatter)
+    logger.addHandler(file_handler)
+
+    stream_handler = logging.StreamHandler()
+    stream_handler.setLevel(log_level)
+    stream_handler.setFormatter(formatter)
+    logger.addHandler(stream_handler)
+
+    queue_handler = logging.handlers.QueueHandler(que)
+    # # add teh list of handlers to the queue listener
+    logger.addHandler(queue_handler)
+    listener = logging.handlers.QueueListener(que, *logger.handlers)
+
+    listener.start()
+    print(f'queue handler name = {logger.handlers}')
+
+    return logger
 
 
 def run_accelerometer() -> None:
@@ -343,14 +359,17 @@ def run_accelerometer() -> None:
     parser.add_argument('--odr', type=int, default=0, help='The output data rate:  %(default)s)')
     parser.add_argument('--dev_number', type=int, default=1, help='The i2c device number:  %(default)s)')
     parser.add_argument('--i2c_address', type=int, default=0x1d, help='The i2c bus address default = %(default)s)')
-    logger = setup_logging(logging_config)
+    print(f'name = {__name__}')
+    logger = setup_logging(name=__name__, log_level=logging.DEBUG)
 
     # logger = logging.getLogger(__name__)
-    # logger.debug("debug message", extra={"x": "hello"})
+    logger.debug("debug message 1")
+    logger.debug("debug message 2")
+    logger.debug("debug message 3")
     logger.info("info message")
-    # logger.warning("warning message")
-    # logger.error("error message")
-    # logger.critical("critical message")
+    logger.warning("warning message")
+    logger.error("error message")
+    logger.critical("critical message")
 
     # logger.info('this is a test')
 
