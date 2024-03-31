@@ -297,28 +297,27 @@ def setup_logging(name: str = 'main', log_file_name: str = "accelerometer.log", 
     log_format = '%(asctime)s-%(name)s  %(levelname)s %(message)s'
     logging.basicConfig(level=log_level)
     que = queue.Queue(-1)
-    logger = logging.getLogger(name)
-    logger.propagate = False
-    formatter = logging.Formatter(log_format)
 
+    logger = logging.getLogger(name)
+    formatter = logging.Formatter(log_format)
+    # for this to work, do not add the handlers to the logger, we add them to the listener
     file_handler = logging.FileHandler(log_file_name, mode='w')
     file_handler.setLevel(log_level)
     file_handler.setFormatter(formatter)
-    logger.addHandler(file_handler)
 
     stream_handler = logging.StreamHandler()
     stream_handler.setLevel(log_level)
     stream_handler.setFormatter(formatter)
-    logger.addHandler(stream_handler)
 
+    logger.propagate = False
+
+    # add the list of handlers to the queue listener
     queue_handler = logging.handlers.QueueHandler(que)
-    # # add teh list of handlers to the queue listener
     logger.addHandler(queue_handler)
-    listener = logging.handlers.QueueListener(que, *logger.handlers)
+    listener = logging.handlers.QueueListener(que, file_handler, stream_handler, respect_handler_level=True)
 
     listener.start()
-    print(f'queue handler name = {logger.handlers}')
-
+    atexit.register(listener.stop)
     return logger
 
 
@@ -359,22 +358,32 @@ def run_accelerometer() -> None:
     parser.add_argument('--odr', type=int, default=0, help='The output data rate:  %(default)s)')
     parser.add_argument('--dev_number', type=int, default=1, help='The i2c device number:  %(default)s)')
     parser.add_argument('--i2c_address', type=int, default=0x1d, help='The i2c bus address default = %(default)s)')
+    parser.add_argument('--log_level', default='info', choices=['info', 'debug', 'warn'], help='the log_level = %(default)s)')
+    args = parser.parse_args()
     print(f'name = {__name__}')
-    logger = setup_logging(name=__name__, log_level=logging.DEBUG)
+    if args.log_level == 'info':
+        log_level = logging.INFO
+    elif args.log_level == 'debug':
+        log_level = logging.DEBUG
+    elif args.log_level == 'warn':
+        log_level = logging.WARNING
+    else:
+        log_level = logging.INFO
+
+    logger = setup_logging(name=__name__, log_level=log_level)
 
     # logger = logging.getLogger(__name__)
     logger.debug("debug message 1")
-    logger.debug("debug message 2")
-    logger.debug("debug message 3")
-    logger.info("info message")
-    logger.warning("warning message")
-    logger.error("error message")
-    logger.critical("critical message")
+
+    logger.info("info message 1")
+    logger.warning("warning message 1")
+    logger.error("error message 1")
+    logger.critical("critical message 1")
 
     # logger.info('this is a test')
 
     exit(-1)
-    args = parser.parse_args()
+
     device_number = args.dev_number
     i2c_address = args.i2c_address
     final_count = args.count
