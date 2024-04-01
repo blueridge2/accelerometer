@@ -285,11 +285,13 @@ class Accelerometer:
         return mm8451_g_range
 
 
-def setup_logging(name: str = 'main', log_file_name: str = "accelerometer.log", log_level: int = logging.DEBUG) -> logging.getLogger:
+def setup_logging(name: str = 'main', log_to_file: bool = False, log_file_name: str = "accelerometer.log", log_level: int = logging.INFO) -> logging.getLogger:
     """
-    Set up the logging for the program, this uses a queue config so the that log IO does not block
+    Set up the logging for the program, this uses a queue config so the that log IO does not block.  the default logging level is info
+
     :param name: the name of the logger
     :param log_file_name: the name of the log file, the mode is overwrite
+    :param log_to_file: if true log to a file
     :param log_level: the debug level of the logger
 
     :return: the logger created
@@ -297,24 +299,28 @@ def setup_logging(name: str = 'main', log_file_name: str = "accelerometer.log", 
     log_format = '%(asctime)s-%(name)s  %(levelname)s %(message)s'
     logging.basicConfig(level=log_level)
     que = queue.Queue(-1)
-
+    handler_list = []
     logger = logging.getLogger(name)
     formatter = logging.Formatter(log_format)
-    # for this to work, do not add the handlers to the logger, we add them to the listener
-    file_handler = logging.FileHandler(log_file_name, mode='w')
-    file_handler.setLevel(log_level)
-    file_handler.setFormatter(formatter)
+    # for this to work, do not add the handlers to the logger, we add them to the listener.
+    # the listener then gets added to the logger
+    if log_to_file:
+        file_handler = logging.FileHandler(log_file_name, mode='w')
+        file_handler.setLevel(log_level)
+        file_handler.setFormatter(formatter)
+        handler_list.append(file_handler)
 
     stream_handler = logging.StreamHandler()
     stream_handler.setLevel(log_level)
     stream_handler.setFormatter(formatter)
+    handler_list.append(stream_handler)
 
     logger.propagate = False
 
     # add the list of handlers to the queue listener
     queue_handler = logging.handlers.QueueHandler(que)
     logger.addHandler(queue_handler)
-    listener = logging.handlers.QueueListener(que, file_handler, stream_handler, respect_handler_level=True)
+    listener = logging.handlers.QueueListener(que, *handler_list, respect_handler_level=True)
 
     listener.start()
     atexit.register(listener.stop)
@@ -340,7 +346,7 @@ def run_accelerometer() -> None:
             "stdout": {
                 "class": "logging.StreamHandler",
                 "formatter": "simple",
-                "stream": "ext://sys.stdout"
+
             }
         },
         "loggers": {
@@ -358,7 +364,9 @@ def run_accelerometer() -> None:
     parser.add_argument('--odr', type=int, default=0, help='The output data rate:  %(default)s)')
     parser.add_argument('--dev_number', type=int, default=1, help='The i2c device number:  %(default)s)')
     parser.add_argument('--i2c_address', type=int, default=0x1d, help='The i2c bus address default = %(default)s)')
-    parser.add_argument('--log_level', default='info', choices=['info', 'debug', 'warn'], help='the log_level = %(default)s)')
+    parser.add_argument('--log_level', default='info', choices=['info', 'debug', 'warn'], help='the log_level default = %(default)s)')
+    parser.add_argument('--log_to_file', action='store_true', default=False, help='if true, log to a file default = %(default)s')
+    parser.add_argument('--log_file_name', type=str, default='accelerometer.log', help='The default log file name, default = %(default)s')
     args = parser.parse_args()
     print(f'name = {__name__}')
     if args.log_level == 'info':
@@ -370,15 +378,15 @@ def run_accelerometer() -> None:
     else:
         log_level = logging.INFO
 
-    logger = setup_logging(name=__name__, log_level=log_level)
+    logger = setup_logging(name=__name__, log_to_file=args.log_to_file, log_file_name=args.log_file_name, log_level=log_level)
 
     # logger = logging.getLogger(__name__)
     logger.debug("debug message 1")
-
     logger.info("info message 1")
     logger.warning("warning message 1")
     logger.error("error message 1")
     logger.critical("critical message 1")
+    logger.info(f'log to file = {args.log_to_file}')
 
     # logger.info('this is a test')
 
